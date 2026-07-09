@@ -1,0 +1,33 @@
+{
+    "cpp26_root": "$ENV{HOME}/devs/c++/clang-p2996/build",
+    "cpp26_cxx": "$ENV{HOME}/devs/c++/clang-p2996/build/bin/clang++",
+    "cpp26_cc": "$ENV{HOME}/devs/c++/clang-p2996/build/bin/clang",
+    "cpp26_lib": "$ENV{HOME}/devs/c++/clang-p2996/build/lib",
+    
+    "user_include": [
+        "./extern/triax/triax",
+        "./extern/triax"
+    ],
+    "rosetta_include": "./extern/rosetta/include",
+    "generator_name": "triax",
+    "module_name": "triax",
+    "targets": [
+        { "lang": "python", "name": "triax" },
+        { "lang": "node", "name": "triax" },
+        { "lang": "wasm-expanded", "name": "triax" }
+    ],
+    "user_sources": [],
+    "classes": [
+        {"doc": "3D vector (double x, y, z) with the usual arithmetic.",                          "name": "Vec3",            "header": "Vec3.hpp"},
+        {"doc": "Unit quaternion for particle orientation (q0 scalar, q1-q3 vector part).",       "name": "Quaternion",      "header": "Quaternion.hpp"},
+        {"doc": "DEM particle: reduced-coordinate position/velocity, orientation, radius.",       "name": "Particle",        "header": "Particle.hpp"},
+        {"doc": "Periodic parallelepiped simulation box (reference/initial/current dimensions).", "name": "Box",             "header": "Box.hpp"},
+        {"doc": "Contact between two particles (normal, interpenetration, forces).",              "name": "Contact",         "header": "Contact.hpp"},
+        {"doc": "Archived contact state for the predictor-corrector scheme.",                     "name": "ArchivedContact", "header": "Contact.hpp"},
+        {"doc": "Candidate pair in the Verlet neighbor list.",                                    "name": "NeighborPair",    "header": "Contact.hpp"},
+        {"doc": "Verlet-list neighbor detection over the periodic box.",                          "name": "NeighborSearch",  "header": "NeighborSearch.hpp"},
+        {"doc": "Triaxial DEM simulation driver: parameters, particles, contacts, time loop.",    "name": "Simulation",      "header": "Simulation.hpp"},
+        {"doc": "Flat-JSON parameter file reader used by all DEM stages.",                        "name": "JsonParams",      "header": "JsonParams.hpp"}
+    ],
+    "functions": []
+}

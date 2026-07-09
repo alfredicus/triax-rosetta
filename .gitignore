@@ -1,0 +1,10 @@
+# Prerequisites
+.DS_Store
+lnkd.*
+build/
+extern/
+gen/
+generated/
+bindings/
+generator
+generated/
