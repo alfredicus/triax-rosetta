@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>triax — WebAssembly binding demo</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1c2128;
+    --muted: #6a7280;
+    --border: #e2e5ea;
+    --accent: #2f6feb;
+    --stop: #d9414a;
+    --term-bg: #0d1117;
+    --term-ink: #d7dee8;
+    --term-dim: #8b949e;
+    --term-green: #56d364;
+    --term-cyan: #56d4dd;
+    --term-yellow: #e3b341;
+    --term-red: #f85149;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0d10;
+      --panel: #14171c;
+      --ink: #e6edf3;
+      --muted: #9098a3;
+      --border: #262b32;
+      --accent: #4f8bff;
+      --stop: #f0555f;
+      --term-bg: #05070a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 22px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 980px; margin: 0 auto; padding: 28px 20px 40px;
+    display: flex; flex-direction: column; min-height: 100%;
+  }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 21px; margin: 0; letter-spacing: -.01em; }
+  h1 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--accent); }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px; margin-left: auto;
+    font-size: 13px; padding: 4px 11px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--term-yellow); flex: none; }
+  .status.ok  .dot { background: var(--term-green); }
+  .status.err .dot { background: var(--term-red); }
+  .status.run .dot { background: var(--term-cyan); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .sub { color: var(--muted); margin: 8px 0 16px; max-width: 74ch; }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  button {
+    font: 600 14px/1 inherit; color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 18px; cursor: pointer; transition: filter .15s ease, opacity .15s ease;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  #run  { background: var(--accent); }
+  #stop { background: var(--stop); }
+  #clear { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .hint { font-size: 12.5px; color: var(--muted); margin-left: 4px; }
+  .console-wrap {
+    flex: 1 1 auto; display: flex; flex-direction: column;
+    background: var(--term-bg); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; min-height: 340px;
+  }
+  .console-head {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    font: 12px/1 ui-monospace, monospace; color: var(--term-dim);
+  }
+  .console-head .lights { display: flex; gap: 6px; margin-right: 6px; }
+  .console-head .lights i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .console-head .lights i:nth-child(1) { background: #ff5f56; }
+  .console-head .lights i:nth-child(2) { background: #ffbd2e; }
+  .console-head .lights i:nth-child(3) { background: #27c93f; }
+  .console-head .count { margin-left: auto; }
+  #console {
+    margin: 0; padding: 12px 16px; flex: 1 1 auto; overflow: auto;
+    font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--term-ink); white-space: pre; tab-size: 4;
+  }
+  #console .out { color: var(--term-ink); }
+  #console .err { color: var(--term-red); }
+  #console .js  { color: var(--term-ink); }
+  #console .dim { color: var(--term-dim); }
+  #console .sys { color: var(--term-cyan); }
+  #console .line { display: block; }
+  code.k { font-family: ui-monospace, monospace; background: rgba(127,127,127,.14); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+  footer { margin-top: 14px; color: var(--muted); font-size: 12.5px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="mono">triax</span> · WebAssembly binding demo</h1>
+    <span id="status" class="status"><span class="dot"></span><span id="statusText">starting…</span></span>
+  </header>
+  <p class="sub">
+    The rosetta-generated embind module runs in a <strong>Web Worker</strong>, so the page stays
+    responsive and the long Section-5 simulation can be interrupted. Everything the module prints —
+    including the C++ <code class="k">printf</code> iteration table — streams into the console below.
+  </p>
+
+  <div class="toolbar">
+    <button id="run" disabled>Run simulation</button>
+    <button id="stop" disabled>Stop</button>
+    <button id="clear">Clear</button>
+    <span class="hint">Sections 1–4 run automatically. “Run” starts the file-based compression test (several minutes).</span>
+  </div>
+
+  <div class="console-wrap">
+    <div class="console-head">
+      <span class="lights"><i></i><i></i><i></i></span>
+      <span>triax · console</span>
+      <span class="count" id="lineCount">0 lines</span>
+    </div>
+    <div id="console" role="log" aria-live="polite"></div>
+  </div>
+
+  <footer>
+    Serve over HTTP from the repo root (<code class="k">python3 -m http.server</code> → <code class="k">http://localhost:8000/</code>)
+    so <code class="k">bindings/wasm-expanded/build/triax.js</code> and the packing file resolve.
+    <strong>Stop</strong> terminates the worker mid-run (the simulation is one blocking C++ call with no pause point),
+    then reloads the module.
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const consoleEl = $("console");
+const runBtn = $("run");
+const stopBtn = $("stop");
+const clearBtn = $("clear");
+
+let worker = null;
+let running = false;
+let ready = false;
+let lineCount = 0;
+
+// ---- console panel ---------------------------------------------------------
+function append(text, cls) {
+  const atBottom = consoleEl.scrollHeight - consoleEl.scrollTop - consoleEl.clientHeight < 24;
+  const span = document.createElement("span");
+  span.className = "line " + (cls || "js");
+  span.textContent = text === "" ? "​" : text;   // keep blank lines visible
+  consoleEl.appendChild(span);
+  lineCount++;
+  $("lineCount").textContent = lineCount + (lineCount === 1 ? " line" : " lines");
+  if (atBottom) consoleEl.scrollTop = consoleEl.scrollHeight;   // follow tail unless scrolled up
+}
+function sysLine(text) { append(text, "sys"); }
+
+function setStatus(text, kind) {
+  $("status").className = "status" + (kind ? " " + kind : "");
+  $("statusText").textContent = text;
+}
+
+// ---- worker lifecycle ------------------------------------------------------
+function spawnWorker() {
+  ready = false;
+  running = false;
+  runBtn.disabled = true;
+  stopBtn.disabled = true;
+
+  worker = new Worker("triax-worker.js");
+  worker.onmessage = (e) => {
+    const m = e.data || {};
+    switch (m.type) {
+      case "log":     append(m.text, m.stream); break;
+      case "status":  setStatus(m.text, m.kind); break;
+      case "ready":
+        ready = true;
+        runBtn.disabled = false;
+        break;
+      case "runStarted":
+        running = true;
+        runBtn.disabled = true;
+        stopBtn.disabled = false;
+        break;
+      case "runDone":
+      case "runError":
+        running = false;
+        stopBtn.disabled = true;
+        runBtn.disabled = !ready;
+        break;
+    }
+  };
+  worker.onerror = (e) => {
+    append("worker error: " + (e.message || "unknown") + (e.filename ? " (" + e.filename + ":" + e.lineno + ")" : ""), "err");
+    setStatus("worker error", "err");
+    running = false;
+    stopBtn.disabled = true;
+  };
+}
+
+// ---- controls --------------------------------------------------------------
+runBtn.addEventListener("click", () => {
+  if (!ready || running) return;
+  worker.postMessage({ cmd: "run" });
+});
+
+stopBtn.addEventListener("click", () => {
+  if (!worker) return;
+  worker.terminate();                       // the only way to interrupt the blocking run()
+  running = false;
+  stopBtn.disabled = true;
+  sysLine("");
+  sysLine("— stopped: worker terminated, reloading module —");
+  setStatus("stopped — reloading", "");
+  spawnWorker();                            // fresh worker reboots + reprints sections 1–4
+});
+
+clearBtn.addEventListener("click", () => {
+  consoleEl.innerHTML = "";
+  lineCount = 0;
+  $("lineCount").textContent = "0 lines";
+});
+
+// ---- boot ------------------------------------------------------------------
+if (typeof Worker === "undefined") {
+  setStatus("Web Workers unavailable", "err");
+  append("This browser does not support Web Workers.", "err");
+} else {
+  spawnWorker();
+}
+</script>
+</body>
+</html>

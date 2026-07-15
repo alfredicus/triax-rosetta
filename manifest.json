@@ -13,7 +13,7 @@
     "module_name": "triax",
     "targets": [
         { "lang": "python", "name": "triax" },
-        { "lang": "node", "name": "triax" },
+        { "lang": "node-expanded", "name": "triax" },
         { "lang": "wasm-expanded", "name": "triax" }
     ],
     "user_sources": [],
